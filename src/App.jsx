@@ -907,15 +907,66 @@ const CompareStep = ({ onNext, onBack }) => {
 // ============================================
 // STEP 2: API SELECTION
 // ============================================
-const ApiStep = ({ onNext, onBack }) => {
+const ApiStep = ({ onNext, onBack, apiKeys, setApiKeys }) => {
   const [selected, setSelected] = useState(null);
-  const [apiKey, setApiKey] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState(null);
+  const [isValidated, setIsValidated] = useState(false);
   
   const providers = [
     { id: 'openai', name: 'OpenAI', Logo: OpenAILogo, placeholder: 'sk-...' },
     { id: 'anthropic', name: 'Anthropic', Logo: AnthropicLogo, placeholder: 'sk-ant-...' },
     { id: 'demo', name: 'Demo Mode', Logo: DemoIcon, placeholder: null, desc: 'Pre-constructed responses' },
   ];
+
+  const validateApiKey = async (id, key) => {
+    if (!key || key.length < 10) return;
+    
+    setIsValidating(true);
+    setValidationError(null);
+    setIsValidated(false);
+
+    try {
+      if (id === 'openai') {
+        const response = await fetch('https://api.openai.com/v1/models', {
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        setIsValidated(true);
+      } else if (id === 'anthropic') {
+        // Anthropic doesn't have a simple "models" endpoint without key in header that works easily with CORS
+        // So we just check format or do a tiny completion
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'dangerouslyAllowBrowser': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 1,
+            messages: [{ role: 'user', content: 'hi' }]
+          })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        setIsValidated(true);
+      }
+    } catch (err) {
+      setValidationError(err.message);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleKeyChange = (val) => {
+    setApiKeys(prev => ({ ...prev, [selected]: val }));
+    setIsValidated(false);
+    setValidationError(null);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: colors.gray50, width: '100%' }}>
@@ -931,7 +982,7 @@ const ApiStep = ({ onNext, onBack }) => {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
           {providers.map(p => (
-            <div key={p.id} onClick={() => { setSelected(p.id); setApiKey(''); }} style={{
+            <div key={p.id} onClick={() => { setSelected(p.id); setValidationError(null); setIsValidated(false); }} style={{
               padding: 18,
               borderRadius: 14,
               border: `2px solid ${selected === p.id ? colors.primary : colors.gray200}`,
@@ -969,24 +1020,44 @@ const ApiStep = ({ onNext, onBack }) => {
         
         {selected && selected !== 'demo' && (
           <div style={{ marginBottom: 28 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: colors.gray700, marginBottom: 10 }}>
-              API Key
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={providers.find(p => p.id === selected)?.placeholder}
-              style={{
-                width: '100%',
-                padding: '14px 18px',
-                fontSize: 14,
-                border: `1.5px solid ${colors.gray300}`,
-                borderRadius: 10,
-                boxSizing: 'border-box',
-                fontFamily: 'monospace',
-              }}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: colors.gray700 }}>
+                API Key
+              </label>
+              {isValidated && <span style={{ fontSize: 12, color: colors.success, fontWeight: 600 }}>✓ Key Validated</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input
+                type="password"
+                value={apiKeys[selected] || ''}
+                onChange={(e) => handleKeyChange(e.target.value)}
+                placeholder={providers.find(p => p.id === selected)?.placeholder}
+                style={{
+                  flex: 1,
+                  padding: '14px 18px',
+                  fontSize: 14,
+                  border: `1.5px solid ${validationError ? colors.error : (isValidated ? colors.success : colors.gray300)}`,
+                  borderRadius: 10,
+                  boxSizing: 'border-box',
+                  fontFamily: 'monospace',
+                  outline: 'none',
+                }}
+              />
+              <Button 
+                size="sm" 
+                onClick={() => validateApiKey(selected, apiKeys[selected])}
+                disabled={isValidating || !apiKeys[selected] || apiKeys[selected].length < 10}
+                variant="secondary"
+                style={{ minWidth: 100 }}
+              >
+                {isValidating ? '...' : 'Validate'}
+              </Button>
+            </div>
+            {validationError && (
+              <p style={{ fontSize: 12, color: colors.error, marginTop: 8 }}>
+                Error: {validationError}
+              </p>
+            )}
             <p style={{ fontSize: 11, color: colors.gray400, marginTop: 8 }}>
               Your key is stored locally and never transmitted to our servers.
             </p>
@@ -994,11 +1065,11 @@ const ApiStep = ({ onNext, onBack }) => {
         )}
         
         <Button
-          onClick={() => onNext({ provider: selected, apiKey: selected === 'demo' ? null : apiKey })}
-          disabled={!(selected === 'demo' || apiKey.length > 10)}
+          onClick={() => onNext({ provider: selected })}
+          disabled={!(selected === 'demo' || isValidated)}
           style={{ width: '100%' }}
         >
-          Continue <Icons.ChevronRight size={18} />
+          {selected !== 'demo' && !isValidated ? 'Please Validate Key' : 'Continue'} <Icons.ChevronRight size={18} />
         </Button>
       </main>
     </div>
@@ -1333,7 +1404,7 @@ const QuestionStep = ({ config, onNext, onBack }) => {
 // ============================================
 // EXPLORATION PAGE (Chat Interface)
 // ============================================
-const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
+const ExplorationPage = ({ config, questionData, onComplete, onBack, apiKeys }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [activeLens, setActiveLens] = useState(null);
@@ -1343,6 +1414,7 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
   const [postStance, setPostStance] = useState(questionData.preStance);
   const [phase, setPhase] = useState('chat');
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [debateRounds, setDebateRounds] = useState([]);
   const [isDebating, setIsDebating] = useState(false);
   const [showSynthesisSuggestion, setShowSynthesisSuggestion] = useState(false);
@@ -1350,6 +1422,77 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
   const [showInviteLens, setShowInviteLens] = useState(false);
   const messagesEndRef = useRef(null);
   const startTimeRef = useRef(Date.now());
+
+  // AI API helper
+  const askAI = async (prompt, systemPrompt, lensId = null) => {
+    const provider = config.provider;
+    const apiKey = apiKeys?.[provider];
+
+    if (provider === 'demo' || !apiKey) {
+      // Fallback to demo responses if no API key
+      return getDebateResponse(lensId || 'effectiveness', 'response', prompt);
+    }
+
+    try {
+      if (provider === 'openai') {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+          }),
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        return data.choices[0].message.content;
+      } else if (provider === 'anthropic') {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'dangerouslyAllowBrowser': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-sonnet-20240229',
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        return data.content[0].text;
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      return `[API Error] I was unable to connect to ${provider}: ${error.message}`;
+    }
+    return "I'm sorry, I couldn't generate a response.";
+  };
+
+  const getSystemPrompt = (lens, otherLenses = []) => {
+    return `You are an AI research assistant taking the perspective of the "${lens.name}" lens. 
+    Your guiding question is: "${lens.question}". 
+    Your primary focus is on ${lens.name.toLowerCase()} considerations. 
+    You should be aware of your potential blindspots: ${lens.blindspot}.
+    
+    In this conversation, you are exploring the question: "${questionData.question}".
+    ${otherLenses.length > 0 ? `You are debating with other lenses: ${otherLenses.map(l => l.name).join(', ')}.` : ''}
+    
+    Keep your responses very brief and concise (maximum 3 sentences). 
+    Focus deeply on your specific lens's priorities. 
+    Do not repeat what others have said. Challenge other perspectives if they overlook ${lens.name.toLowerCase()} impacts.`;
+  };
   
   // Generate contextual debate responses based on the question
   const getDebateResponse = (lensId, type, question) => {
@@ -1522,32 +1665,48 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
   };
   
   // Generate a debate round with contextual responses
-  const generateDebateRound = () => {
+  const generateDebateRound = async () => {
     if (!activeLenses || activeLenses.length < 2) return;
     
     setIsDebating(true);
     const question = questionData.question;
     
-    setTimeout(() => {
+    try {
       // Create exchanges based on number of active lenses
       const exchanges = [];
       const types = ['opening', 'response', 'rebuttal', 'counter'];
       
-      activeLenses.forEach((lens, i) => {
-        exchanges.push({
-          lens: lens,
-          text: getDebateResponse(lens.id, types[i % types.length], question),
-          type: types[i % types.length],
-        });
-      });
+      // Use for...of to handle async calls sequentially or use Promise.all
+      // Sequentially feels more natural for a debate
+      for (let i = 0; i < activeLenses.length; i++) {
+        const lens = activeLenses[i];
+        const type = types[i % types.length];
+        const otherLenses = activeLenses.filter(l => l.id !== lens.id);
+        
+        let text;
+        if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+          text = getDebateResponse(lens.id, type, question);
+        } else {
+          const prompt = i === 0 
+            ? `Give your initial thoughts on the question: "${question}". Keep it under 2 sentences.`
+            : `Respond to the points made so far about: "${question}". Focus on your lens's unique perspective. Be extremely concise.`;
+          text = await askAI(prompt, getSystemPrompt(lens, otherLenses), lens.id);
+        }
+
+        exchanges.push({ lens, text, type });
+      }
       
       // Add one more rebuttal from first lens if we have 2-3 lenses
       if (activeLenses.length <= 3) {
-        exchanges.push({
-          lens: activeLenses[0],
-          text: getDebateResponse(activeLenses[0].id, 'rebuttal', question),
-          type: 'rebuttal',
-        });
+        const firstLens = activeLenses[0];
+        const others = activeLenses.filter(l => l.id !== firstLens.id);
+        let text;
+        if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+          text = getDebateResponse(firstLens.id, 'rebuttal', question);
+        } else {
+          text = await askAI("Provide a final, one-sentence concluding thought on this round.", getSystemPrompt(firstLens, others), firstLens.id);
+        }
+        exchanges.push({ lens: firstLens, text, type: 'rebuttal' });
       }
       
       const round = {
@@ -1555,18 +1714,28 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
         exchanges,
       };
       setDebateRounds(prev => [...prev, round]);
+    } catch (error) {
+      console.error("Error generating debate round:", error);
+    } finally {
       setIsDebating(false);
-    }, 1500);
+    }
   };
   
   // Add a new lens to the debate
-  const inviteLens = (lens) => {
+  const inviteLens = async (lens) => {
     if (activeLenses.length >= 4) return;
     if (activeLenses.find(l => l.id === lens.id)) return;
     
     setActiveLenses([...activeLenses, lens]);
     setShowInviteLens(false);
     
+    let text;
+    if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+      text = getDebateResponse(lens.id, 'opening', questionData.question);
+    } else {
+      text = await askAI(`Briefly introduce yourself and your perspective on the question: "${questionData.question}". Limit to one sentence.`, getSystemPrompt(lens, activeLenses), lens.id);
+    }
+
     // Add invitation announcement and lens introduction
     const introRound = {
       id: Date.now(),
@@ -1576,7 +1745,7 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
       exchanges: [
         {
           lens: lens,
-          text: getDebateResponse(lens.id, 'opening', questionData.question),
+          text: text,
           type: 'introduction',
         },
       ],
@@ -1592,72 +1761,141 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
 
   // Initial response based on mode
   useEffect(() => {
-    if (config.condition === 'standard') {
-      setMessages([
-        { id: 1, type: 'user', text: questionData.question },
-        { id: 2, type: 'ai', text: 'This involves multiple considerations worth examining carefully. Research suggests both potential benefits and significant drawbacks depending on context. Key factors include stakeholder impact, implementation feasibility, and long-term consequences. What specific aspect would you like to explore?' },
-      ]);
-    } else if (config.condition === 'split') {
-      // Split view - dual responses chat style
-      const lens1 = config.lenses[0];
-      const lens2 = config.lenses[1];
-      setMessages([
-        { 
-          id: 0, 
-          type: 'system-intro',
-          username: questionData.username,
-          lenses: [lens1, lens2],
-        },
-        { id: 1, type: 'user', text: questionData.question },
-        { 
-          id: 2, 
-          type: 'dual-response',
-          responses: [
-            { lens: lens1, text: getDebateResponse(lens1.id, 'opening', questionData.question) },
-            { lens: lens2, text: getDebateResponse(lens2.id, 'opening', questionData.question) },
-          ]
-        },
-      ]);
-    } else {
-      // Synthesis mode - starts with debate
-      generateDebateRound();
-    }
+    const init = async () => {
+      setIsLoadingInitial(true);
+      try {
+        if (config.condition === 'standard') {
+          let text;
+          if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+            text = 'This involves multiple considerations worth examining carefully. Research suggests both potential benefits and significant drawbacks depending on context. Key factors include stakeholder impact, implementation feasibility, and long-term consequences. What specific aspect would you like to explore?';
+          } else {
+            // Use a more structured and conversational prompt for standard mode
+            text = await askAI(questionData.question, `You are a helpful, conversational research assistant. 
+              Provide a balanced, structured response to the user's question. 
+              Start with a friendly conversational opening.
+              Use clear sections with bold headings (**Heading**) and bullet points (- point) where appropriate. 
+              CRITICAL: Keep your response concise and brief (under 150 words). No need to be super extensive.
+              End with a brief takeaway or a follow-up question.`);
+          }
+          setMessages([
+            { id: 1, type: 'user', text: questionData.question },
+            { id: 2, type: 'ai', text: text },
+          ]);
+        } else if (config.condition === 'split') {
+          // Split view - dual responses chat style
+          const lens1 = config.lenses[0];
+          const lens2 = config.lenses[1];
+          
+          let text1, text2;
+        if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+          text1 = getDebateResponse(lens1.id, 'opening', questionData.question);
+          text2 = getDebateResponse(lens2.id, 'opening', questionData.question);
+        } else {
+          [text1, text2] = await Promise.all([
+            askAI(`Briefly give your initial thoughts on: "${questionData.question}". Max 2 sentences.`, getSystemPrompt(lens1, [lens2]), lens1.id),
+            askAI(`Briefly give your initial thoughts on: "${questionData.question}". Max 2 sentences.`, getSystemPrompt(lens2, [lens1]), lens2.id)
+          ]);
+        }
+
+          setMessages([
+            { 
+              id: 0, 
+              type: 'system-intro',
+              username: questionData.username,
+              lenses: [lens1, lens2],
+            },
+            { id: 1, type: 'user', text: questionData.question },
+            { 
+              id: 2, 
+              type: 'dual-response',
+              responses: [
+                { lens: lens1, text: text1 },
+                { lens: lens2, text: text2 },
+              ]
+            },
+          ]);
+        } else {
+          // Synthesis mode - starts with debate
+          await generateDebateRound();
+        }
+      } catch (error) {
+        console.error("Initialization error:", error);
+      } finally {
+        setIsLoadingInitial(false);
+      }
+    };
+    init();
   }, []);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
     const userMsg = { id: Date.now(), type: 'user', text: input, targetLens: activeLens };
     setMessages(prev => [...prev, userMsg]);
+    const currentInput = input;
     setInput('');
     setIsTyping(true);
     
-    setTimeout(() => {
-      setIsTyping(false);
-      if (activeLens) {
-        // Single lens response
+    try {
+      if (config.condition === 'standard') {
+        // Standard mode follow-up
+        let text;
+        if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+          text = "That's an interesting follow-up. Research suggests that...";
+        } else {
+          text = await askAI(currentInput, `You are a helpful, conversational research assistant. 
+            Respond to the user's follow-up question briefly and clearly. 
+            Keep your response under 100 words. Use 1-2 bullet points if needed.
+            Maintain a helpful and neutral tone.`);
+        }
+        setMessages(prev => [...prev, { id: Date.now(), type: 'ai', text }]);
+      } else if (activeLens) {
+        // Single lens response (@tagged)
         const lens = config.lenses.find(l => l.id === activeLens);
-        const responses = DEMO_FINDINGS[activeLens] || [];
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)]?.text || 
-          `From a ${lens?.name.toLowerCase()} perspective, this raises important considerations about ${lens?.question.toLowerCase()}`;
-        setMessages(prev => [...prev, { id: Date.now(), type: 'single-response', lens, text: randomResponse }]);
+        let text;
+        if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+          const responses = DEMO_FINDINGS[activeLens] || [];
+          text = responses[Math.floor(Math.random() * responses.length)]?.text || 
+            `From a ${lens?.name.toLowerCase()} perspective, this raises important considerations about ${lens?.question.toLowerCase()}`;
+        } else {
+          text = await askAI(currentInput, `${getSystemPrompt(lens)}\n\nCRITICAL: Keep your response concise (under 2 sentences).`, lens.id);
+        }
+        setMessages(prev => [...prev, { id: Date.now(), type: 'single-response', lens, text }]);
       } else {
         // Dual lens response
         const lens1 = config.lenses[0];
         const lens2 = config.lenses[1];
-        const resp1 = DEMO_FINDINGS[lens1.id] || [];
-        const resp2 = DEMO_FINDINGS[lens2.id] || [];
+        
+        let text1, text2;
+        if (config.provider === 'demo' || !apiKeys?.[config.provider]) {
+          const resp1 = DEMO_FINDINGS[lens1.id] || [];
+          const resp2 = DEMO_FINDINGS[lens2.id] || [];
+          text1 = resp1[Math.floor(Math.random() * resp1.length)]?.text || 'Considering this angle...';
+          text2 = resp2[Math.floor(Math.random() * resp2.length)]?.text || 'From this viewpoint...';
+        } else {
+          // Parallel calls for dual response
+          const brevityInstruction = "\n\nCRITICAL: Keep your response very concise (maximum 3 sentences). Focus only on your lens's most unique point.";
+          [text1, text2] = await Promise.all([
+            askAI(currentInput, getSystemPrompt(lens1, [lens2]) + brevityInstruction, lens1.id),
+            askAI(currentInput, getSystemPrompt(lens2, [lens1]) + brevityInstruction, lens2.id)
+          ]);
+        }
+
         setMessages(prev => [...prev, { 
           id: Date.now(), 
           type: 'dual-response',
           responses: [
-            { lens: lens1, text: resp1[Math.floor(Math.random() * resp1.length)]?.text || 'Considering this angle...' },
-            { lens: lens2, text: resp2[Math.floor(Math.random() * resp2.length)]?.text || 'From this viewpoint...' },
+            { lens: lens1, text: text1 },
+            { lens: lens2, text: text2 },
           ]
         }]);
       }
-    }, 800);
+    } catch (error) {
+      console.error("Error handling send:", error);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const toggleFinding = (finding, lens, customKey = null) => {
@@ -1669,7 +1907,7 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = (extraData = {}) => {
     onComplete({
       sessionId: `session-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -1682,6 +1920,7 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
       messageCount: messages.filter(m => m.type === 'user').length,
       selectedFindings: selectedFindings.map(f => ({ lens: f.lens.id, finding: f.finding.text })),
       synthesis: config.condition === 'synthesis' ? synthesis : null,
+      ...extraData
     });
   };
 
@@ -2380,6 +2619,64 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
     );
   }
 
+  const renderStructuredText = (text) => {
+    if (!text) return null;
+    return text.split('\n').map((line, i) => {
+      const trimmed = line.trim();
+      if (!trimmed) return <div key={i} style={{ height: '0.8em' }} />;
+      
+      // Check for headings (e.g., **Heading** or # Heading)
+      if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+        return <h4 key={i} style={{ margin: '16px 0 8px 0', color: colors.gray900, fontSize: 16 }}>{trimmed.replace(/\*\*/g, '')}</h4>;
+      }
+      
+      // Check for bullet points
+      if (trimmed.startsWith('- ') || trimmed.startsWith('• ') || trimmed.startsWith('* ')) {
+        return (
+          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, paddingLeft: 4 }}>
+            <span>•</span>
+            <span>{trimmed.substring(2)}</span>
+          </div>
+        );
+      }
+      
+      // Regular text with support for inline bold
+      const parts = trimmed.split(/(\*\*.*?\*\*)/g);
+      return (
+        <p key={i} style={{ margin: '0 0 8px 0', lineHeight: 1.6 }}>
+          {parts.map((part, j) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return <strong key={j} style={{ color: colors.gray900 }}>{part.replace(/\*\*/g, '')}</strong>;
+            }
+            return part;
+          })}
+        </p>
+      );
+    });
+  };
+
+  if (isLoadingInitial) {
+    return (
+      <div style={{ minHeight: 'calc(100vh - 70px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: colors.gray50, textAlign: 'center', padding: 20 }}>
+        <Header onBack={onBack} showProgress step={6} totalSteps={7} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ 
+            width: 40, 
+            height: 40, 
+            border: `3px solid ${colors.gray200}`, 
+            borderTop: `3px solid ${colors.primary}`, 
+            borderRadius: '50%', 
+            animation: 'spin 1s linear infinite',
+            marginBottom: 20
+          }} />
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: colors.gray900, marginBottom: 8 }}>Initializing Exploration...</h3>
+          <p style={{ fontSize: 14, color: colors.gray500 }}>Connecting to analytical lenses via {config.provider === 'openai' ? 'OpenAI' : config.provider === 'anthropic' ? 'Anthropic' : 'Local Engine'}...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: colors.gray50 }}>
       <Header onBack={onBack} showProgress step={6} totalSteps={7} />
@@ -2560,17 +2857,18 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
               {/* Standard AI response */}
               {msg.type === 'ai' && (
                 <div style={{ 
-                  maxWidth: '75%', 
-                  padding: '16px 20px', 
+                  maxWidth: '85%', 
+                  padding: '20px 24px', 
                   borderRadius: 20,
                   borderBottomLeftRadius: 6,
                   background: colors.white, 
                   fontSize: 15, 
                   color: colors.gray700,
                   lineHeight: 1.6,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+                  border: `1px solid ${colors.gray100}`,
                 }}>
-                  {msg.text}
+                  {renderStructuredText(msg.text)}
                 </div>
               )}
             </div>
@@ -2728,7 +3026,7 @@ const ExplorationPage = ({ config, questionData, onComplete, onBack }) => {
               </Button>
               <Button onClick={() => { 
                 setShowSynthesisSuggestion(false);
-                onComplete({ trySynthesisMode: true });
+                handleComplete({ trySynthesisMode: true });
               }}>
                 Try Synthesis Mode
               </Button>
@@ -2878,7 +3176,7 @@ const GlobalHeader = ({ currentTab, onTabChange, onLogoClick }) => (
 // ============================================
 // SIMULATION VIEW
 // ============================================
-const SimulationView = ({ onStepChange }) => {
+const SimulationView = ({ onStepChange, apiKeys, setApiKeys }) => {
   const [step, setStep] = useState('landing');
   const [config, setConfig] = useState({});
   const [questionData, setQuestionData] = useState(null);
@@ -2901,11 +3199,18 @@ const SimulationView = ({ onStepChange }) => {
       {step === 'landing' && <LandingPage onStart={() => setStep('welcome')} />}
       {step === 'welcome' && <WelcomeStep onNext={(d) => { setConfig({ ...config, ...d }); setStep('compare'); }} onBack={() => setStep('landing')} />}
       {step === 'compare' && <CompareStep onNext={() => setStep('api')} onBack={() => setStep('welcome')} />}
-      {step === 'api' && <ApiStep onNext={(d) => { setConfig({ ...config, ...d }); setStep('condition'); }} onBack={() => setStep('compare')} />}
+      {step === 'api' && <ApiStep onNext={(d) => { setConfig({ ...config, ...d }); setStep('condition'); }} onBack={() => setStep('compare')} apiKeys={apiKeys} setApiKeys={setApiKeys} />}
       {step === 'condition' && <ConditionStep onNext={(d) => { setConfig({ ...config, ...d }); setStep(d.condition === 'standard' ? 'question' : 'lens'); }} onBack={() => setStep('api')} />}
       {step === 'lens' && <LensStep config={config} onNext={(d) => { setConfig({ ...config, ...d }); setStep('question'); }} onBack={() => setStep('condition')} />}
       {step === 'question' && <QuestionStep config={config} onNext={(d) => { setQuestionData({ ...d, username: config.username }); setStep('explore'); }} onBack={() => setStep(config.condition === 'standard' ? 'condition' : 'lens')} />}
-      {step === 'explore' && <ExplorationPage config={config} questionData={questionData} onComplete={(d) => { setSessionData(d); setStep('complete'); }} onBack={() => setStep('question')} />}
+      {step === 'explore' && <ExplorationPage config={config} questionData={questionData} apiKeys={apiKeys} onComplete={(d) => { 
+        if (d.trySynthesisMode) {
+          setStep('condition'); 
+        } else {
+          setSessionData(d); 
+          setStep('complete'); 
+        }
+      }} onBack={() => setStep('question')} />}
       {step === 'complete' && <CompletionPage sessionData={sessionData} onRestart={restart} />}
     </>
   );
@@ -3120,6 +3425,10 @@ export default function App() {
   const [simulationStep, setSimulationStep] = useState('landing');
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [simulationKey, setSimulationKey] = useState(0);
+  const [apiKeys, setApiKeys] = useState({
+    openai: '',
+    anthropic: ''
+  });
 
   const isInMiddleOfSimulation = currentTab === 'simulation' && 
     !['landing', 'complete'].includes(simulationStep);
@@ -3147,7 +3456,7 @@ export default function App() {
         onLogoClick={handleLogoClick}
       />
       
-      {currentTab === 'simulation' && <SimulationView key={simulationKey} onStepChange={setSimulationStep} />}
+      {currentTab === 'simulation' && <SimulationView key={simulationKey} onStepChange={setSimulationStep} apiKeys={apiKeys} setApiKeys={setApiKeys} />}
       {currentTab === 'designs' && <InitialDesignsView />}
       {currentTab === 'casestudy' && <CaseStudyView />}
 
