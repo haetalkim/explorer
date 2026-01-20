@@ -3392,8 +3392,19 @@ const CaseStudyView = () => (
         </div>
       </div>
       <div>
-        <Button size="sm" onClick={() => window.open('#', '_blank')} style={{ padding: '8px 16px', fontSize: 13 }}>
-          <Icons.Download size={16} /> Read the Case Study
+        <Button
+          size="md"
+          onClick={() => window.open('https://docs.google.com/document/d/1MW-bfsLBKqMJBKCQn7bXTyjPAIjctHJxF8S72oDWjY8/edit?tab=t.0', '_blank', 'noopener,noreferrer')}
+          style={{
+            padding: '14px 22px',
+            fontSize: 15,
+            borderRadius: 14,
+            minWidth: 220,
+            gap: 10,
+            boxShadow: `0 12px 30px ${colors.primary}30`,
+          }}
+        >
+          <Icons.Download size={18} /> Read the Case Study
         </Button>
       </div>
     </div>
