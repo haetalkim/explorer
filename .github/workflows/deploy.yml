@@ -3,25 +3,20 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  workflow_dispatch:        # lets you trigger a deploy manually from the Actions tab
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Only one deploy runs at a time; a new push cancels a queued one.
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +24,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -37,11 +32,9 @@ jobs:
 
       - name: Build
         env:
-          # AI provider key — set in repo Settings → Secrets → Actions
           VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
           VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
           VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
-          # Google Sheet logger + post-survey redirect
           VITE_RECORD_SUBMIT_URL: ${{ secrets.VITE_RECORD_SUBMIT_URL }}
           VITE_RECORD_SUBMIT_TOKEN: ${{ secrets.VITE_RECORD_SUBMIT_TOKEN }}
           VITE_POST_SURVEY_URL: ${{ secrets.VITE_POST_SURVEY_URL }}
@@ -52,6 +45,13 @@ jobs:
         with:
           path: dist
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
