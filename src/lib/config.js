@@ -24,6 +24,17 @@ const ENV_KEYS = {
   google: import.meta.env.VITE_GOOGLE_API_KEY || '',
 };
 
+// Auto-detect which provider to use based on available env keys,
+// preferring OpenAI → Anthropic → Google, only if researcher hasn't
+// explicitly chosen one via the setup screen.
+function detectProvider(storedProvider, keys) {
+  if (storedProvider && storedProvider !== 'demo') return storedProvider;
+  if (keys.openai) return 'openai';
+  if (keys.anthropic) return 'anthropic';
+  if (keys.google) return 'google';
+  return 'demo';
+}
+
 export function loadConfig() {
   let stored = {};
   try {
@@ -31,13 +42,14 @@ export function loadConfig() {
   } catch {
     stored = {};
   }
+  const keys = {
+    openai: stored.keys?.openai || ENV_KEYS.openai,
+    anthropic: stored.keys?.anthropic || ENV_KEYS.anthropic,
+    google: stored.keys?.google || ENV_KEYS.google,
+  };
   return {
-    provider: stored.provider || 'demo',
-    keys: {
-      openai: stored.keys?.openai || ENV_KEYS.openai,
-      anthropic: stored.keys?.anthropic || ENV_KEYS.anthropic,
-      google: stored.keys?.google || ENV_KEYS.google,
-    },
+    provider: detectProvider(stored.provider, keys),
+    keys,
     models: { ...DEFAULT_MODELS, ...(stored.models || {}) },
     recordSubmitUrl: stored.recordSubmitUrl || import.meta.env.VITE_RECORD_SUBMIT_URL || '',
     recordSubmitToken: stored.recordSubmitToken || import.meta.env.VITE_RECORD_SUBMIT_TOKEN || '',
