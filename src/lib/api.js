@@ -10,7 +10,7 @@ async function fetchWithRetry(fn, { retries = 2, baseDelayMs = 1000 } = {}) {
     } catch (err) {
       lastErr = err;
       // Only retry on transient errors (network, 5xx, 429, 529).
-      const transient = /overload|rate.limit|529|500|503|network|fetch/i.test(err.message);
+      const transient = /overload|rate.limit|529|500|503|network|fetch|empty response/i.test(err.message);
       if (!transient || attempt === retries) throw err;
     }
   }
