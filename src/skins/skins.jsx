@@ -166,7 +166,7 @@ export const SKINS = {
     composerModelLabel: null,
     sendShape: 'circle',
     assistantAvatar: <div className="assistant-avatar">AI</div>,
-    headerLeft: <img src="/logo.png" alt="Explorer" style={{ height: 22 }} />,
+    headerLeft: <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Explorer" style={{ height: 22 }} />,
     sidebar: null,
   },
 };

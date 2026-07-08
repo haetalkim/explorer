@@ -113,7 +113,7 @@ export default function App() {
         <header className="global-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <img
-              src="/logo.png"
+              src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Explorer"
               style={{ height: 26, cursor: 'pointer' }}
               onClick={() => setTab('study')}
