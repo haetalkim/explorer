@@ -1,0 +1,214 @@
+/* ============================================================
+   Platform chat skins.
+   Each skin overrides the --chat-* variables consumed by the
+   session styles in index.css, plus a few structural details.
+   ============================================================ */
+
+/* ---------------- Sidebar (ChatGPT, Gemini) ---------------- */
+
+.chat-sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  background: var(--chat-sidebar-bg, var(--surface-secondary));
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--chat-sidebar-ink, #3c3c3c);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-item:hover {
+  background: var(--chat-sidebar-hover, rgba(0, 0, 0, 0.05));
+}
+.sidebar-item.active {
+  background: var(--chat-sidebar-active, rgba(0, 0, 0, 0.07));
+  font-weight: 500;
+}
+
+.sidebar-section {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-tertiary);
+  padding: 16px 10px 6px;
+}
+
+/* ---------------- Header marks ---------------- */
+
+.skin-model-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--chat-header-ink, #5d5d5d);
+  cursor: pointer;
+}
+
+.skin-wordmark-serif {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #3d3d3a;
+}
+
+.gemini-brand {
+  color: #1f1f1f;
+  font-weight: 500;
+  gap: 10px;
+}
+
+.gemini-model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #575b5f;
+  background: #f0f4f9;
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
+/* Composer decoys */
+.composer-plus {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--chat-ink, var(--ink));
+  opacity: 0.65;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.composer-plus:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.composer-model-label {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  align-self: center;
+  white-space: nowrap;
+  padding-right: 4px;
+}
+
+.chat-disclaimer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--chat-disclaimer-ink, var(--ink-tertiary));
+  padding-top: 10px;
+}
+
+/* ---------------- ChatGPT ---------------- */
+
+.skin-chatgpt {
+  --chat-bg: #ffffff;
+  --chat-ink: #0d0d0d;
+  --chat-font: ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial,
+    sans-serif;
+  --chat-font-size: 16px;
+  --chat-user-bubble: #f4f4f4;
+  --chat-user-ink: #0d0d0d;
+  --chat-bubble-radius: 24px;
+  --chat-composer-bg: #ffffff;
+  --chat-composer-border: #e3e3e3;
+  --chat-composer-radius: 28px;
+  --chat-composer-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
+  --chat-send-bg: #0d0d0d;
+  --chat-send-ink: #ffffff;
+  --chat-sidebar-bg: #f9f9f9;
+  --chat-sidebar-ink: #0d0d0d;
+  --chat-sidebar-hover: #ececec;
+  --chat-sidebar-active: #ececec;
+  --chat-header-border: transparent;
+  --chat-header-ink: #5d5d5d;
+}
+
+.skin-chatgpt .composer-wrap {
+  border-top: none;
+}
+
+/* ---------------- Claude ---------------- */
+
+.skin-claude {
+  --chat-bg: #faf9f5;
+  --chat-ink: #3d3d3a;
+  --chat-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+    sans-serif;
+  --chat-font-size: 16px;
+  --chat-user-bubble: #f0eee6;
+  --chat-user-ink: #3d3d3a;
+  --chat-bubble-radius: 16px;
+  --chat-composer-bg: #ffffff;
+  --chat-composer-border: #dad9d4;
+  --chat-composer-radius: 16px;
+  --chat-composer-shadow: 0 1px 5px rgba(0, 0, 0, 0.04);
+  --chat-send-bg: #d97757;
+  --chat-send-ink: #ffffff;
+  --chat-send-radius: 10px;
+  --chat-header-border: transparent;
+  --chat-lens-bubble: #ffffff;
+  --chat-lens-bubble-border: #e8e6dd;
+}
+
+.skin-claude .composer-wrap {
+  border-top: none;
+}
+
+/* ---------------- Gemini ---------------- */
+
+.skin-gemini {
+  --chat-bg: #ffffff;
+  --chat-ink: #1f1f1f;
+  --chat-font: 'Google Sans Text', 'Google Sans', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  --chat-font-size: 16px;
+  --chat-user-bubble: #f0f4f9;
+  --chat-user-ink: #1f1f1f;
+  --chat-bubble-radius: 20px 4px 20px 20px;
+  --chat-composer-bg: #f0f4f9;
+  --chat-composer-border: transparent;
+  --chat-composer-radius: 32px;
+  --chat-composer-shadow: none;
+  --chat-send-bg: transparent;
+  --chat-send-ink: #444746;
+  --chat-sidebar-bg: #f0f4f9;
+  --chat-sidebar-ink: #1f1f1f;
+  --chat-sidebar-hover: #e2e7ed;
+  --chat-sidebar-active: #d3e3fd;
+  --chat-header-border: transparent;
+}
+
+.skin-gemini .composer-wrap {
+  border-top: none;
+}
+
+.skin-gemini .msg-assistant {
+  gap: 14px;
+}
