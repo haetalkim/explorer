@@ -6,9 +6,9 @@
 const STORAGE_KEY = 'explorer.researcherConfig';
 
 export const DEFAULT_MODELS = {
-  openai: 'gpt-5.5',
-  anthropic: 'claude-sonnet-5',
-  google: 'gemini-3.5-flash',
+  openai: 'gpt-4o',
+  anthropic: 'claude-opus-4-5',
+  google: 'gemini-2.0-flash',
 };
 
 export const PROVIDERS = [

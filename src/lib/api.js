@@ -16,7 +16,9 @@ export async function chat({ provider, apiKey, model, system, messages }) {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.choices[0].message.content.trim();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error(`Empty response from OpenAI (model: ${model})`);
+    return content.trim();
   }
 
   if (provider === 'anthropic') {
@@ -37,7 +39,9 @@ export async function chat({ provider, apiKey, model, system, messages }) {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.content[0].text.trim();
+    const content = data.content?.[0]?.text;
+    if (!content) throw new Error(`Empty response from Anthropic (model: ${model})`);
+    return content.trim();
   }
 
   if (provider === 'google') {
@@ -57,7 +61,9 @@ export async function chat({ provider, apiKey, model, system, messages }) {
     );
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.candidates[0].content.parts[0].text.trim();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) throw new Error(`Empty response from Google (model: ${model})`);
+    return content.trim();
   }
 
   throw new Error(`Unknown provider: ${provider}`);
